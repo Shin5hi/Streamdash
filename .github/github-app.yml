@@ -1,0 +1,9 @@
+scripts:
+  - name: Dev Server
+    command: npm run dev
+    triggers: 
+      - session.create
+      - session.archive
+automation:
+  auto_issue_session: true
+  remote_control: true

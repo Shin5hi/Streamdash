@@ -152,7 +152,7 @@ class TwitchService {
   TwitchStreamMetrics? _cachedMetrics;
 
   String? get configurationError {
-    if (_clientId.trim().isEmpty || _clientId == 'YOUR_TWITCH_CLIENT_ID') {
+    if (_helixClientId.isEmpty || _helixClientId == 'YOUR_TWITCH_CLIENT_ID') {
       return 'Twitch Client ID is not configured.';
     }
     if (_helixAccessToken.isEmpty ||
@@ -166,7 +166,9 @@ class TwitchService {
 
   bool get hasChannelLogin =>
       _channelLogin.trim().isNotEmpty &&
-      _channelLogin != 'YOUR_TWITCH_CHANNEL_LOGIN';
+      _channelLogin.trim() != 'YOUR_TWITCH_CHANNEL_LOGIN';
+
+  String get _helixClientId => _clientId.trim();
 
   String get _helixAccessToken {
     final token = _accessToken.trim();
@@ -176,7 +178,7 @@ class TwitchService {
   }
 
   Map<String, String> get _headers => {
-    'Client-Id': _clientId,
+    'Client-Id': _helixClientId,
     'Authorization': 'Bearer $_helixAccessToken',
   };
 

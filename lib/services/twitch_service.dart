@@ -106,18 +106,31 @@ class TwitchPastStream {
 class TwitchService {
   static final TwitchService _instance = TwitchService._internal();
   factory TwitchService() => _instance;
-  TwitchService._internal();
-
-  static const String _clientId = String.fromEnvironment('TWITCH_CLIENT_ID');
-  static const String _accessToken = String.fromEnvironment(
-    'TWITCH_ACCESS_TOKEN',
-  );
-  static const String _channelLogin = String.fromEnvironment(
-    'TWITCH_CHANNEL_LOGIN',
-  );
   static const String _baseUrl = 'https://api.twitch.tv/helix';
 
-  final Dio _dio = Dio(
+  TwitchService._internal()
+    : _clientId = const String.fromEnvironment('TWITCH_CLIENT_ID'),
+      _accessToken = const String.fromEnvironment('TWITCH_ACCESS_TOKEN'),
+      _channelLogin = const String.fromEnvironment('TWITCH_CHANNEL_LOGIN'),
+      _dio = _createDio();
+
+  @visibleForTesting
+  TwitchService.forTesting({
+    required Dio dio,
+    required String clientId,
+    required String accessToken,
+    required String channelLogin,
+  }) : _dio = dio,
+       _clientId = clientId,
+       _accessToken = accessToken,
+       _channelLogin = channelLogin;
+
+  final String _clientId;
+  final String _accessToken;
+  final String _channelLogin;
+  final Dio _dio;
+
+  static Dio _createDio() => Dio(
     BaseOptions(
       baseUrl: _baseUrl,
       connectTimeout: const Duration(seconds: 10),
@@ -138,18 +151,36 @@ class TwitchService {
   TwitchChannelInfo? _cachedChannelInfo;
   TwitchStreamMetrics? _cachedMetrics;
 
-  bool get hasCredentials =>
-      _clientId.isNotEmpty &&
-      _accessToken.isNotEmpty &&
-      _clientId != 'YOUR_TWITCH_CLIENT_ID' &&
-      _accessToken != 'YOUR_TWITCH_ACCESS_TOKEN';
+  String? get configurationError {
+    if (_helixClientId.isEmpty || _helixClientId == 'YOUR_TWITCH_CLIENT_ID') {
+      return 'Twitch Client ID is not configured.';
+    }
+    if (_helixAccessToken.isEmpty ||
+        _helixAccessToken == 'YOUR_TWITCH_ACCESS_TOKEN') {
+      return 'Twitch access token is not configured.';
+    }
+    return null;
+  }
+
+  bool get hasCredentials => configurationError == null;
 
   bool get hasChannelLogin =>
-      _channelLogin.isNotEmpty && _channelLogin != 'YOUR_TWITCH_CHANNEL_LOGIN';
+      _normalizedChannelLogin.isNotEmpty &&
+      _normalizedChannelLogin != 'YOUR_TWITCH_CHANNEL_LOGIN';
+
+  String get _helixClientId => _clientId.trim();
+  String get _normalizedChannelLogin => _channelLogin.trim();
+
+  String get _helixAccessToken {
+    final token = _accessToken.trim();
+    return token
+        .replaceFirst(RegExp(r'^oauth:', caseSensitive: false), '')
+        .trim();
+  }
 
   Map<String, String> get _headers => {
-    'Client-Id': _clientId,
-    'Authorization': 'Bearer $_accessToken',
+    'Client-Id': _helixClientId,
+    'Authorization': 'Bearer $_helixAccessToken',
   };
 
   // ─── Channel Metadata ────────────────────────────────────────────────────────
@@ -160,7 +191,7 @@ class TwitchService {
     try {
       final resp = await _dio.get(
         '/users',
-        queryParameters: {'login': _channelLogin},
+        queryParameters: {'login': _normalizedChannelLogin},
         options: Options(headers: _headers),
       );
       final items = resp.data['data'] as List?;
@@ -206,7 +237,7 @@ class TwitchService {
     try {
       final resp = await _dio.get(
         '/streams',
-        queryParameters: {'user_login': _channelLogin},
+        queryParameters: {'user_login': _normalizedChannelLogin},
         options: Options(headers: _headers),
       );
       final items = resp.data['data'] as List?;
@@ -222,7 +253,8 @@ class TwitchService {
           clipCount: 0,
           streamDuration: '0:00:00',
           title: 'Offline',
-          channelName: _cachedChannelInfo?.displayName ?? _channelLogin,
+          channelName:
+              _cachedChannelInfo?.displayName ?? _normalizedChannelLogin,
           thumbnailUrl: _cachedChannelInfo?.profileImageUrl ?? '',
           gameName: '',
           isLive: false,
@@ -256,7 +288,7 @@ class TwitchService {
         clipCount: 0,
         streamDuration: duration,
         title: stream['title'] as String? ?? '',
-        channelName: stream['user_name'] as String? ?? _channelLogin,
+        channelName: stream['user_name'] as String? ?? _normalizedChannelLogin,
         thumbnailUrl: thumb,
         gameName: stream['game_name'] as String? ?? '',
         isLive: true,

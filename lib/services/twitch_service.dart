@@ -165,10 +165,11 @@ class TwitchService {
   bool get hasCredentials => configurationError == null;
 
   bool get hasChannelLogin =>
-      _channelLogin.trim().isNotEmpty &&
-      _channelLogin.trim() != 'YOUR_TWITCH_CHANNEL_LOGIN';
+      _normalizedChannelLogin.isNotEmpty &&
+      _normalizedChannelLogin != 'YOUR_TWITCH_CHANNEL_LOGIN';
 
   String get _helixClientId => _clientId.trim();
+  String get _normalizedChannelLogin => _channelLogin.trim();
 
   String get _helixAccessToken {
     final token = _accessToken.trim();
@@ -190,7 +191,7 @@ class TwitchService {
     try {
       final resp = await _dio.get(
         '/users',
-        queryParameters: {'login': _channelLogin},
+        queryParameters: {'login': _normalizedChannelLogin},
         options: Options(headers: _headers),
       );
       final items = resp.data['data'] as List?;
@@ -236,7 +237,7 @@ class TwitchService {
     try {
       final resp = await _dio.get(
         '/streams',
-        queryParameters: {'user_login': _channelLogin},
+        queryParameters: {'user_login': _normalizedChannelLogin},
         options: Options(headers: _headers),
       );
       final items = resp.data['data'] as List?;
@@ -252,7 +253,8 @@ class TwitchService {
           clipCount: 0,
           streamDuration: '0:00:00',
           title: 'Offline',
-          channelName: _cachedChannelInfo?.displayName ?? _channelLogin,
+          channelName:
+              _cachedChannelInfo?.displayName ?? _normalizedChannelLogin,
           thumbnailUrl: _cachedChannelInfo?.profileImageUrl ?? '',
           gameName: '',
           isLive: false,
@@ -286,7 +288,7 @@ class TwitchService {
         clipCount: 0,
         streamDuration: duration,
         title: stream['title'] as String? ?? '',
-        channelName: stream['user_name'] as String? ?? _channelLogin,
+        channelName: stream['user_name'] as String? ?? _normalizedChannelLogin,
         thumbnailUrl: thumb,
         gameName: stream['game_name'] as String? ?? '',
         isLive: true,

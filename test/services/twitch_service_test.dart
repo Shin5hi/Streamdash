@@ -88,6 +88,23 @@ void main() {
       expect(await service.fetchChannelInfo(), isNull);
       expect(requestCount, 0);
     });
+
+    test('trims channel login for channel and stream requests', () async {
+      final requests = <RequestOptions>[];
+      final service = _service(
+        clientId: 'test-client-id',
+        accessToken: 'test-access-token',
+        channelLogin: ' test-channel ',
+        onRequest: requests.add,
+      );
+
+      await service.fetchChannelInfo();
+      await service.fetchLiveMetrics();
+
+      expect(requests, hasLength(2));
+      expect(requests[0].queryParameters['login'], 'test-channel');
+      expect(requests[1].queryParameters['user_login'], 'test-channel');
+    });
   });
 }
 
@@ -95,6 +112,7 @@ TwitchService _service({
   required String clientId,
   required String accessToken,
   required void Function(RequestOptions) onRequest,
+  String channelLogin = 'test-channel',
 }) {
   final dio = Dio(BaseOptions(baseUrl: 'https://api.twitch.tv/helix'));
   dio.interceptors.add(
@@ -109,6 +127,6 @@ TwitchService _service({
     dio: dio,
     clientId: clientId,
     accessToken: accessToken,
-    channelLogin: 'test-channel',
+    channelLogin: channelLogin,
   );
 }
